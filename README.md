@@ -503,6 +503,408 @@ end-ds;
 
 ---
 
+## ❌ MISTAKE #16: Procedure Interface and Prototype Mismatches
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Mismatched prototype and interface
+dcl-pr myProcedure varchar(100);
+  inputParam char(50) const;
+end-pr;
+
+dcl-proc myProcedure;
+  dcl-pi *n char(100);  // Wrong: Different return type
+    inputParam varchar(50) const;  // Wrong: Different parameter type
+  end-pi;
+end-proc;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Matching prototype and interface
+dcl-pr myProcedure varchar(100);
+  inputParam char(50) const;
+end-pr;
+
+dcl-proc myProcedure;
+  dcl-pi *n varchar(100);
+    inputParam char(50) const;
+  end-pi;
+end-proc;
+```
+
+### 📖 LESSON LEARNED:
+- **Prototype and interface** must match exactly
+- **Parameter types** must be identical
+- **Return types** must be identical
+- **Parameter names** can differ but types cannot
+
+---
+
+## ❌ MISTAKE #17: Incorrect Date/Time BIF Usage
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid date format string
+currentDate = %char(%date() : '*YMD-');
+
+// Wrong: Invalid %diff parameters
+daysDiff = %diff(%date() : startDate);
+
+// Wrong: Invalid timestamp initialization
+dcl-s myTimestamp timestamp inz(%timestamp('2024-01-01-12.00.00'));
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Valid date format
+currentDate = %char(%date() : '*YMD');
+
+// Correct: %diff with time unit
+daysDiff = %diff(%date() : startDate : *days);
+
+// Correct: Proper timestamp format
+dcl-s myTimestamp timestamp;
+myTimestamp = %timestamp('2024-01-01-12.00.00.000000');
+```
+
+### 📖 LESSON LEARNED:
+- **Date format strings** must match IBM i standards
+- **%diff() requires** three parameters including time unit
+- **Timestamp format** must include microseconds
+- **Separate declaration** from complex BIF initialization
+
+---
+
+## ❌ MISTAKE #18: Incorrect %SUBARR and Array BIF Usage
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: %subarr with assignment
+%subarr(targetArray : 1 : 5) = %subarr(sourceArray : 1 : 5);
+
+// Wrong: %lookup with wrong parameters
+pos = %lookup('VALUE' : myArray : 1 : %elem(myArray));
+
+// Wrong: %tlookup doesn't exist
+pos = %tlookup('VALUE' : myArray);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Manual array copying
+for i = 1 to 5;
+  targetArray(i) = sourceArray(i);
+endfor;
+
+// Correct: %lookup without range parameters
+pos = %lookup('VALUE' : myArray);
+
+// Correct: Use %lookup for table lookup
+pos = %lookup('VALUE' : myArray);
+```
+
+### 📖 LESSON LEARNED:
+- **%subarr cannot be assigned** - use manual loops
+- **%lookup parameters** are element and array only
+- **No %tlookup BIF** exists - use %lookup
+- **Range parameters** not supported in %lookup
+
+---
+
+## ❌ MISTAKE #19: File I/O Operation Code Confusion
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Using BIF syntax for file operations
+%read(myFile);
+%write(myFile);
+%chain(key : myFile);
+
+// Wrong: Mixed file operation syntax
+read myFile %eof();
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use operation codes for file I/O
+read myFile;
+write myFile;
+chain key myFile;
+
+// Correct: Check %eof after operation
+read myFile;
+if %eof(myFile);
+  // Handle end of file
+endif;
+```
+
+### 📖 LESSON LEARNED:
+- **File I/O uses operation codes**, not BIFs
+- **%eof() is a BIF** used after file operations
+- **Chain operation** uses key then file syntax
+- **Separate file operations** from condition checking
+
+---
+
+## ❌ MISTAKE #20: Invalid SQL Embedded Syntax
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: SQL variable without colon
+exec sql
+  select count(*) into recordCount
+  from myTable;
+
+// Wrong: Invalid SQL continuation
+exec sql select name,
+         address
+  into :empName, :empAddr
+  from employee;
+
+// Wrong: Missing null indicators
+exec sql
+  select name into :empName
+  from employee
+  where id = :empId;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: SQL variable with colon prefix
+exec sql
+  select count(*) into :recordCount
+  from myTable;
+
+// Correct: Proper SQL statement formatting
+exec sql
+  select name, address
+  into :empName, :empAddr
+  from employee;
+
+// Correct: Include null indicators
+dcl-s empNameInd int(5);
+exec sql
+  select name into :empName :empNameInd
+  from employee
+  where id = :empId;
+```
+
+### 📖 LESSON LEARNED:
+- **Host variables** must have colon prefix in SQL
+- **SQL statements** should be properly formatted
+- **Always include null indicators** for nullable fields
+- **Check SQLSTATE** after SQL operations
+
+---
+
+## ❌ MISTAKE #21: Monitor Block and Error Handling Errors
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Missing endmon
+monitor;
+  riskyOperation();
+on-error;
+  // Handle error
+
+// Wrong: Invalid error handling syntax
+try;
+  riskyOperation();
+catch;
+  // Handle error
+endtry;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Complete monitor block
+monitor;
+  riskyOperation();
+on-error;
+  // Handle error
+endmon;
+
+// Correct: RPGLE uses monitor/on-error, not try/catch
+monitor;
+  riskyOperation();
+on-error;
+  // Handle error
+endmon;
+```
+
+### 📖 LESSON LEARNED:
+- **Monitor blocks** must have endmon
+- **RPGLE uses monitor/on-error**, not try/catch
+- **Always close** monitor blocks properly
+- **Error handling** is not optional for risky operations
+
+---
+
+## ❌ MISTAKE #22: Incorrect Global Variable and Copy Member Usage
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Global variable without proper declaration
+//copy QCPYSRC,GLOBALS
+globalVar = 'Test';  // Used without proper declaration in copy member
+
+// Wrong: Copy member with executable code
+/copy MYLIB/QCPYSRC,BADCOPY
+// Copy member contains executable statements
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Proper copy member usage
+/copy QCPYSRC,GLOBALS
+// Ensure copy member only contains declarations
+
+// Correct: Global variable properly declared in copy member
+// Copy member should only contain:
+// dcl-s globalVar varchar(100) export;
+globalVar = 'Test';
+```
+
+### 📖 LESSON LEARNED:
+- **Copy members** should contain only declarations
+- **Global variables** need export keyword in copy members
+- **No executable code** in copy members
+- **Validate copy member** contents before inclusion
+
+---
+
+## ❌ MISTAKE #23: Incorrect Use of Named Constants and Figurative Constants
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Named constant with variable syntax
+dcl-s MAX_RECORDS const int(10) inz(1000);
+
+// Wrong: Invalid figurative constant usage
+field = *null;  // For non-pointer fields
+field = *blanks(10);  // Invalid parameter
+
+// Wrong: Incorrect *HIVAL/*LOVAL usage
+if date > *hival;  // Invalid comparison
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Named constant syntax
+dcl-c MAX_RECORDS const(1000);
+
+// Correct: Proper figurative constant usage
+field = *blanks;  // No parameters needed
+ptr = *null;      // Only for pointer fields
+
+// Correct: Proper *HIVAL/*LOVAL usage
+if date = *hival;  // Used for initialization/comparison
+```
+
+### 📖 LESSON LEARNED:
+- **Named constants** use dcl-c with const() syntax
+- **Figurative constants** don't take parameters
+- ***null** only for pointer fields
+- ***hival/*loval** for boundary conditions
+
+---
+
+## ❌ MISTAKE #24: Template and Based Variable Confusion
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Template used as regular variable
+dcl-ds myTemplate template;
+  field1 char(10);
+end-ds;
+
+myTemplate.field1 = 'Test';  // Cannot use template directly
+
+// Wrong: Based variable without pointer
+dcl-s basedVar char(100) based;
+basedVar = 'Test';  // No pointer specified
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Template with instance
+dcl-ds myTemplate template;
+  field1 char(10);
+end-ds;
+
+dcl-ds myInstance likeds(myTemplate);
+myInstance.field1 = 'Test';
+
+// Correct: Based variable with pointer
+dcl-s myPtr pointer;
+dcl-s basedVar char(100) based(myPtr);
+myPtr = %addr(someVariable);
+basedVar = 'Test';
+```
+
+### 📖 LESSON LEARNED:
+- **Templates** cannot be used directly - need instances
+- **Based variables** require a pointer specification
+- **Use likeds()** to create instances from templates
+- **Initialize pointers** before using based variables
+
+---
+
+## ❌ MISTAKE #25: Incorrect Loop Control and Iterator Usage
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: FOR loop with string iterator
+for name = 'A' to 'Z';
+  // Process names
+endfor;
+
+// Wrong: Invalid DOW condition
+dow %found() and not %eof();  // %found() without context
+  // Process records
+enddo;
+
+// Wrong: ITER/LEAVE outside loop
+if condition;
+  iter;  // Not inside a loop
+endif;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: FOR loop with numeric iterator
+for i = 1 to 26;
+  name = %char(%int('A') + i - 1);
+  // Process names
+endfor;
+
+// Correct: DOW with proper context
+read myFile;
+dow not %eof(myFile);
+  // Process records
+  read myFile;
+enddo;
+
+// Correct: ITER/LEAVE inside loop
+for i = 1 to 100;
+  if condition;
+    iter;  // Continue to next iteration
+  endif;
+  if otherCondition;
+    leave;  // Exit loop
+  endif;
+endfor;
+```
+
+### 📖 LESSON LEARNED:
+- **FOR loops** require numeric iterators
+- **%found()** needs context (which file/operation)
+- **ITER/LEAVE** only valid inside loops
+- **DOW conditions** should be clear and testable
+
+---
+
 ## 🎯 CRITICAL SYNTAX RULES FOR FUTURE REFERENCE
 
 ### ✅ VARIABLE DECLARATIONS:
@@ -561,6 +963,14 @@ Before generating RPGLE code, verify:
 - [ ] **Proper occurrence handling** - assignment not parameters
 - [ ] **Field length constraints** - display files, etc.
 - [ ] **Test framework flow** - return before teardown
+- [ ] **Prototype/interface matching** - exact parameter/return types
+- [ ] **Date/time BIF parameters** - include required time units
+- [ ] **File I/O operation codes** - not BIF syntax
+- [ ] **SQL host variables** - colon prefix and null indicators
+- [ ] **Monitor blocks** - complete with endmon
+- [ ] **Copy members** - declarations only, no executable code
+- [ ] **Template vs instance** - don't use templates directly
+- [ ] **Loop iterators** - numeric only for FOR loops
 
 ---
 
@@ -601,6 +1011,28 @@ len = %len(%trim(string));
 upper = %upper(string);
 ```
 
+### ✅ PROCEDURE DEFINITIONS:
+```rpgle
+// Matching prototype and interface
+dcl-pr myProcedure varchar(100);
+  param1 char(50) const;
+  param2 int(10) value;
+end-pr;
+
+dcl-proc myProcedure;
+  dcl-pi *n varchar(100);
+    param1 char(50) const;
+    param2 int(10) value;
+  end-pi;
+  
+  // All variable declarations here
+  dcl-s result varchar(100);
+  
+  // Executable code here
+  return result;
+end-proc;
+```
+
 ---
 
 ## 📝 ADDITIONAL SESSION-LEVEL INSIGHTS
@@ -613,11 +1045,5 @@ Based on the feedback provided, additional common mistakes include:
 4. **Legacy vs Modern Syntax**: Mixing fixed-format concepts with free-format syntax
 5. **Copy Member Dependencies**: Generating code that references non-existent copy members
 6. **Test Case Structure**: Not understanding proper test framework initialization and teardown
-
----
-
-## 🏁 CONCLUSION
-
-This documentation serves as a comprehensive reference for avoiding common RPGLE code generation mistakes. Each pattern documented here represents actual compilation failures that have been corrected through iterative feedback and testing.
-
-**Key Success Principle**: Always verify generated RPGLE code against IBM documentation and test with actual compilation before deployment.
+7. **Procedure Interface Mismatches**: Prototype and interface parameters not matching exactly
+8. **Date/Time Operation Errors**: Missing required parameters in date/time
