@@ -905,6 +905,8 @@ endfor;
 
 ---
 
+
+
 ## 🎯 CRITICAL SYNTAX RULES FOR FUTURE REFERENCE
 
 ### ✅ VARIABLE DECLARATIONS:
@@ -1034,6 +1036,920 @@ end-proc;
 ```
 
 ---
+# Additional RPGLE Code Generation Errors - Documentation
+
+## ❌ MISTAKE #26: Parameter Passing by Reference Validation
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Parameter not valid for reference passing
+dcl-pr myProcedure;
+  invalidParam char(10) const;  // Cannot pass const by reference
+end-pr;
+
+// Call with incompatible parameter
+myProcedure(someVariable);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use VALUE for const parameters or remove const for reference
+dcl-pr myProcedure;
+  validParam char(10) value;  // Pass by value
+end-pr;
+
+// Or for reference passing
+dcl-pr myProcedure;
+  validParam char(10);  // Pass by reference (no const)
+end-pr;
+```
+
+### 📖 LESSON LEARNED:
+- **CONST parameters** cannot be passed by reference
+- **Use VALUE keyword** for const parameters
+- **Reference parameters** cannot have const keyword
+
+---
+
+## ❌ MISTAKE #27: SQL SET OPTION Usage in Procedures
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+dcl-proc Test_SQLOption_CloseCursor;
+  // Wrong: SET OPTION in procedure
+  exec sql set option closqlcsr=*endmod;
+  assertNumericEquals(0 : sqlcode);
+end-proc;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: SET OPTION at program level, not in procedures
+// Remove the entire test case as SET OPTION is not allowed in procedures
+// Handle CLOSQLCSR at compilation level instead
+```
+
+### 📖 LESSON LEARNED:
+- **SET OPTION statements** not allowed within procedures
+- **SQL options** should be handled at program compilation level
+- **Remove problematic SQL option tests** entirely
+
+---
+
+## ❌ MISTAKE #28: SQL Host Structure Array Issues
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+dcl-proc Test_SQLCursor_FetchMultipleRows;
+  dcl-ds fetchArray likeds(myFileTemplate) dim(100);
+  exec sql fetch testCursor3 for 100 rows into :fetchArray;
+end-proc;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+dcl-proc Test_SQLCursor_FetchMultipleRows;
+  dcl-ds fetchArray likeds(myFileTemplate) dim(100) template;
+  dcl-ds workArray likeds(fetchArray) dim(100);
+  dcl-s tempField1 char(10);
+  dcl-s tempField2 packed(7:2);
+  
+  exec sql declare testCursor3 cursor for select field1, field2 from myfile;
+  exec sql open testCursor3;
+  
+  // Fetch one row at a time
+  for i = 1 to %elem(workArray);
+    exec sql fetch testCursor3 into :tempField1, :tempField2;
+    if sqlcode <> 0;
+      leave;
+    endif;
+    workArray(i).field1 = tempField1;
+    workArray(i).field2 = tempField2;
+  endfor;
+  
+  exec sql close testCursor3;
+end-proc;
+```
+
+### 📖 LESSON LEARNED:
+- **SQL host structure arrays** have specific usability requirements
+- **Fetch multiple rows** often requires individual field handling
+- **Use template and work arrays** for complex SQL operations
+
+---
+
+## ❌ MISTAKE #29: SQL GET DIAGNOSTICS Syntax
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid GET DIAGNOSTICS syntax
+exec sql get diagnostics :sqlState = RETURNED_SQLSTATE;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use built-in SQLSTATE field
+sqlState = SQLSTATE;
+```
+
+### 📖 LESSON LEARNED:
+- **SQLSTATE is built-in** SQL communication area field
+- **No GET DIAGNOSTICS needed** for basic SQL state
+- **Use direct assignment** from SQLSTATE variable
+
+---
+
+## ❌ MISTAKE #30: SQL FETCH Syntax Errors
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid FETCH syntax
+exec sql fetch testCursor3 for 10 rows into :fetchArray;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Proper FETCH syntax
+exec sql fetch from testCursor3 for 10 rows into :fetchArray;
+```
+
+### 📖 LESSON LEARNED:
+- **FETCH requires FROM keyword** when using cursor names
+- **Multi-row FETCH** needs proper syntax structure
+- **Verify SQL syntax** against IBM i SQL standards
+
+---
+
+## ❌ MISTAKE #31: Invalid %move Operation Code
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: %move doesn't exist as BIF
+%move(TEST_DATE : dateds);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use MOVE operation code or assignment
+move TEST_DATE dateds;
+// Or use direct assignment
+dateds = TEST_DATE;
+```
+
+### 📖 LESSON LEARNED:
+- **%move() BIF doesn't exist**
+- **Use MOVE operation code** for legacy behavior
+- **Use direct assignment** in free-format RPG
+
+---
+
+## ❌ MISTAKE #32: Wrong Assertion Types for Numeric Results
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Using char assertion for numeric result
+pos = %scan('text' : string);
+assertCharNotEquals('0' : pos);  // %scan returns numeric
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use numeric assertion for %scan
+pos = %scan('text' : string);
+assertNumericNotEquals(0 : pos);  // %scan returns 0 when not found
+```
+
+### 📖 LESSON LEARNED:
+- **%scan() returns numeric** position or 0
+- **Use assertNumericNotEquals** for numeric comparisons
+- **%scan returns 0** when string not found (not when found)
+
+---
+
+## ❌ MISTAKE #33: PSDS Template and Qualified Conflict
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: PSDS with template and qualified together
+dcl-ds sysds psds qualified template;
+  procName char(10) pos(1);
+  sysDate char(8) pos(191);
+end-ds;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: PSDS with qualified only
+dcl-ds sysds psds qualified;
+  procName char(10) pos(1);
+  sysDate char(8) pos(191);
+end-ds;
+
+// Or template only (separate from PSDS)
+dcl-ds psdsTemplate qualified template;
+  procName char(10) pos(1);
+  sysDate char(8) pos(191);
+end-ds;
+```
+
+### 📖 LESSON LEARNED:
+- **TEMPLATE and QUALIFIED** cannot be used together
+- **PSDS with QUALIFIED** is valid
+- **Separate template definitions** from PSDS declarations
+
+---
+
+## ❌ MISTAKE #34: Date Format Keywords in Declarations
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: datfmt keyword in dcl-s
+dcl-s eurDate date datfmt(*eur);
+dcl-s isoDate date datfmt(*iso);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Standard date declarations
+dcl-s eurDate date;
+dcl-s isoDate date;
+
+// Use format conversion in output
+eurDateStr = %char(eurDate : *eur);
+isoDateStr = %char(isoDate : *iso);
+```
+
+### 📖 LESSON LEARNED:
+- **Remove datfmt keyword** from declarations
+- **Use %char() with format** for output conversion
+- **RPG handles internal date storage** uniformly
+
+---
+
+## ❌ MISTAKE #35: Invalid System Date Initialization
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: *sys not valid in free-format
+dcl-s currentDate date inz(*sys);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use %date() BIF
+dcl-s currentDate date;
+currentDate = %date();
+```
+
+### 📖 LESSON LEARNED:
+- **Cannot use *sys directly** in free-format
+- **Use %date() BIF** for current system date
+- **Separate declaration from assignment** for BIFs
+
+---
+
+## ❌ MISTAKE #36: Invalid Integer Length Specifications
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid integer lengths
+dcl-s testVar int(15);
+dcl-s testVar int(7);
+dcl-s testVar int(8);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Valid integer lengths only
+dcl-s testVar int(10);  // 15 -> 10
+dcl-s testVar int(10);  // 7 -> 10
+dcl-s testVar int(10);  // 8 -> 10
+```
+
+### 📖 LESSON LEARNED:
+- **Integer lengths** can only be 3, 5, 10, or 20 digits
+- **Most common choice** is int(10) for general use
+- **Invalid lengths** cause compilation errors
+
+---
+
+## ❌ MISTAKE #37: Export Keyword in Prototypes
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Export in prototype
+dcl-pr square int(10) export;
+  pnum int(5) value;
+end-pr;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Export only in procedure implementation
+dcl-pr square int(10);
+  pnum int(5) value;
+end-pr;
+
+dcl-proc square export;
+  dcl-pi *n int(10);
+    pnum int(5) value;
+  end-pi;
+  // procedure body
+end-proc;
+```
+
+### 📖 LESSON LEARNED:
+- **Export keyword** only in procedure implementation
+- **Prototypes don't use export** keyword
+- **Implementation includes export** if needed
+
+---
+
+## ❌ MISTAKE #38: Invalid Unsigned Integer Syntax
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid unsigned integer syntax
+dcl-s testVar unsigned int(8);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use standard integer syntax
+dcl-s testVar int(10);
+```
+
+### 📖 LESSON LEARNED:
+- **No unsigned int syntax** in free-format RPG
+- **Use standard int()** declarations
+- **RPG handles unsigned operations** through BIFs
+
+---
+
+## ❌ MISTAKE #39: Invalid String Operations
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid string concatenation and operations
+longString = 'First part' + 'Second part';
+testStr = 'TEST123' + *blanks;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Proper string handling
+longString = 'First part Second part';
+testStr = 'TEST123' + %trimr(*blanks);
+```
+
+### 📖 LESSON LEARNED:
+- **No + operator** for string concatenation in RPG
+- **Use %trimr()** for proper blank handling
+- **Keep strings intact** or use proper string BIFs
+
+---
+
+## ❌ MISTAKE #40: Data Area Declaration Errors
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Standalone variable for data area
+dcl-s testDataArea char(100) dtaara('*LDA');
+
+// Wrong: PSDS with template keyword
+dcl-ds testProgramStatus psds qualified template;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Data structure for data area
+dcl-ds testDataArea dtaara(*lda) qualified;
+end-ds;
+
+// Correct: PSDS without template, or template without PSDS
+dcl-ds programStatusTemplate qualified template;
+  // fields here
+end-ds;
+```
+
+### 📖 LESSON LEARNED:
+- **Data areas** require data structure declarations
+- **Use dcl-ds** not dcl-s for data areas
+- **PSDS and template** cannot be used together
+
+---
+
+## ❌ MISTAKE #41: Incorrect Operation Code Syntax
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Incorrect SCAN and CHECK syntax
+scan 'brown' testSearchField testPosition;
+check 'aeiou' testSearchField testPosition;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use BIF syntax in free-format
+testPosition = %scan('brown' : testSearchField);
+testPosition = %check('aeiou' : testSearchField);
+```
+
+### 📖 LESSON LEARNED:
+- **Use BIFs** instead of operation codes in free-format
+- **%scan() and %check()** are the correct BIF forms
+- **Operation code syntax** not valid in free-format
+
+---
+
+## ❌ MISTAKE #42: Multidimensional Array Simulation
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Multidimensional array syntax
+dcl-s matrix packed(5:2) dim(MATRIX_SIZE:MATRIX_SIZE);
+matrix(i:j) = value;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Single dimension with calculated index
+dcl-s matrix packed(5:2) dim(100);  // 10x10 = 100 elements
+index = (i - 1) * MATRIX_SIZE + j;
+matrix(index) = value;
+```
+
+### 📖 LESSON LEARNED:
+- **No multidimensional arrays** in RPG
+- **Use calculated indices** for matrix operations
+- **Formula: (row-1) * width + column** for 2D simulation
+
+---
+
+## ❌ MISTAKE #43: Invalid VARCHAR Operation
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: %varchar as operation code
+%varchar(field);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: VARCHAR conversion is automatic
+// No manual conversion needed in modern RPG
+field = someValue;  // Automatic conversion
+```
+
+### 📖 LESSON LEARNED:
+- **No %varchar() BIF** exists
+- **VARCHAR conversion** is automatic in modern RPG
+- **Remove manual conversion** attempts
+
+---
+
+## ❌ MISTAKE #44: Multiple Occurrence Issues
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: likeds with occurs not inherited
+dcl-ds MultiOccur occurs(10) template;
+  field1 char(10);
+end-ds;
+
+dcl-ds multiRec likeds(MultiOccur);  // Missing occurs
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Declare occurs explicitly
+dcl-ds MultiOccur occurs(10) template;
+  field1 char(10);
+end-ds;
+
+dcl-ds multiRec likeds(MultiOccur) occurs(10);
+```
+
+### 📖 LESSON LEARNED:
+- **Occurs not inherited** from template
+- **Must declare occurs** explicitly on likeds
+- **Template occurs** doesn't carry over to instances
+
+---
+
+## ❌ MISTAKE #45: Date/Time BIF Initialization Errors
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: BIF in initialization
+dcl-s baseDate date inz(%date('2024-01-01'));
+dcl-s testTime time inz(%time('12:30:45'));
+dcl-s yearStr char(4) inz(%char(%subdt(testDate : *years) : 4));
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use date/time literals
+dcl-s baseDate date;
+dcl-s testTime time;
+dcl-s yearStr char(4);
+
+// Initialize in procedure body
+baseDate = d'2024-01-01';
+testTime = t'12.30.45';  // Use dots, not colons
+yearStr = %char(%subdt(testDate : *years));  // No second parameter
+```
+
+### 📖 LESSON LEARNED:
+- **Cannot use BIFs** in inz() initialization
+- **Use date/time literals**: d'YYYY-MM-DD', t'HH.MM.SS'
+- **%char() takes one parameter** only
+- **Time literals use dots** not colons
+
+---
+
+## ❌ MISTAKE #46: Invalid Packed Decimal Precision
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid packed decimal precision
+dcl-s taxRate packed(3:4) const options(*nopass);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Sufficient precision for decimal places
+dcl-s taxRate packed(7:4) const options(*nopass);
+```
+
+### 📖 LESSON LEARNED:
+- **Packed decimal precision** must be sufficient for decimal places
+- **Total digits** must be greater than decimal places
+- **Use packed(7:4)** for 4 decimal places
+
+---
+
+## ❌ MISTAKE #47: Invalid SORTA with %SUBARR
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid SORTA with %SUBARR combination
+%sorta(testSalaries : %subarr(testSalaries : 1 : testEmployeeCount));
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use SORTA with %SUBARR properly
+sorta %subarr(testSalaries : 1 : testEmployeeCount);
+```
+
+### 📖 LESSON LEARNED:
+- **SORTA is operation code** not BIF
+- **Use SORTA with %SUBARR** directly
+- **No second parameter** for SORTA
+
+---
+
+## ❌ MISTAKE #48: Template Name Conflicts
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Template name same as instance name
+dcl-ds myTemplate template;
+  field1 char(10);
+end-ds;
+
+dcl-ds myTemplate likeds(myTemplate);  // Name conflict
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Different names for template and instance
+dcl-ds myTemplate_t template;
+  field1 char(10);
+end-ds;
+
+dcl-ds myInstance likeds(myTemplate_t);
+```
+
+### 📖 LESSON LEARNED:
+- **Template and instance** cannot have same name
+- **Use naming convention** like _t for templates
+- **Avoid name conflicts** between template and instance
+
+---
+
+## ❌ MISTAKE #49: Invalid File Operation Syntax
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Mixed file operation syntax
+open(e) myFile;
+close(e) myFile;
+read(e) myFile;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Consistent file operation syntax
+open myFile;
+close myFile;
+read myFile;
+
+// Or with error handling
+open(e) myFile;
+if not %error();
+  // File opened successfully
+endif;
+```
+
+### 📖 LESSON LEARNED:
+- **Consistent syntax** for file operations
+- **Error handling** with (e) extender
+- **Check %error()** after operations with (e)
+
+---
+
+## ❌ MISTAKE #50: Invalid Parameter Omission
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid parameter omission
+myProcedure(param1 : : param3);  // Missing second parameter
+myProcedure(param1 : ;);  // Invalid syntax
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use %omit() for optional parameters
+myProcedure(param1 : %omit() : param3);
+```
+
+### 📖 LESSON LEARNED:
+- **Use %omit()** for omitting parameters
+- **Cannot leave parameters blank** with just colons
+- **Optional parameters** need proper omission syntax
+
+---
+
+## ❌ MISTAKE #51: Overlay Keyword in Free-Format
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: OVERLAY not supported in **FREE
+dcl-proc Test_Overlay_Field1;
+  dcl-s masterField char(50);
+  dcl-s field1 char(10) overlay(masterField : 1);  // Invalid in **FREE
+end-proc;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Use data structure for overlay functionality
+dcl-ds masterField;
+  field1 char(10);
+  field2 char(15);
+  field3 char(25);
+end-ds;
+
+dcl-proc Test_Overlay_Field1;
+  masterField = TEST_OVERLAY_DATA;
+  assertCharEquals(EXPECTED_FIELD1 : field1);
+end-proc;
+```
+
+### 📖 LESSON LEARNED:
+- **OVERLAY keyword** not supported in **FREE format
+- **Use data structure subfields** for overlay functionality
+- **Global data structure** provides overlay-like behavior
+
+---
+
+## ❌ MISTAKE #52: Invalid %occur BIF Syntax
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Invalid %occur syntax
+%occur(legacyDS : occurrence) = 1;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Proper %occur assignment
+%occur(legacyDS) = 1;
+```
+
+### 📖 LESSON LEARNED:
+- **%occur() takes one parameter** only
+- **Assignment to %occur()** sets occurrence number
+- **No second parameter** for occurrence value
+
+---
+
+## ❌ MISTAKE #53: Based Array Element Size
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Element size too small for operations
+dcl-s dynamicArray char(1) dim(32767) based(memoryPtr);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: Appropriate element size
+dcl-s dynamicArray char(10) dim(32767) based(memoryPtr);
+```
+
+### 📖 LESSON LEARNED:
+- **Array element size** must accommodate data being stored
+- **Match element size** to operation requirements
+- **Consider data length** when declaring based arrays
+
+---
+
+## ❌ MISTAKE #54: Cache Array Declaration Type
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: dcl-s for data structure array
+dcl-s cache likeds(cacheEntry_t) dim(1000);
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: dcl-ds for data structure array
+dcl-ds cache likeds(cacheEntry_t) dim(100);
+```
+
+### 📖 LESSON LEARNED:
+- **Data structure arrays** require dcl-ds
+- **Never use dcl-s** for structure arrays
+- **dcl-s is for scalar** variables only
+
+---
+
+## ❌ MISTAKE #55: Variable Declaration in Loops
+
+### 🔴 INCORRECT CODE GENERATED:
+```rpgle
+// Wrong: Variable declaration inside loop
+for i = 1 to count;
+  dcl-s len int(10) = %len(%trim(strings(i)));
+  if len > 0;
+    // logic here
+  endif;
+endfor;
+```
+
+### ✅ CORRECT COMPILABLE CODE:
+```rpgle
+// Correct: All declarations at procedure level
+dcl-s len int(10);
+
+for i = 1 to count;
+  len = %len(%trim(strings(i)));
+  if len > 0;
+    // logic here
+  endif;
+endfor;
+```
+
+### 📖 LESSON LEARNED:
+- **No variable declarations** inside loops
+- **All declarations** at procedure beginning
+- **Separate declaration** from assignment
+
+---
+
+## 🎯 ADDITIONAL CRITICAL SYNTAX RULES
+
+### ✅ PARAMETER PASSING:
+```rpgle
+// Correct parameter specifications
+dcl-pr myProc varchar(100);
+  param1 char(50) const value;    // const requires value
+  param2 char(50);                // reference passing
+  param3 char(50) options(*nopass); // optional parameter
+end-pr;
+```
+
+### ✅ SQL OPERATIONS:
+```rpgle
+// Correct SQL syntax
+exec sql
+  select field1, field2
+  into :hostVar1, :hostVar2
+  from myTable
+  where key = :keyValue;
+
+// Use SQLSTATE for error checking
+if SQLSTATE <> '00000';
+  // Handle SQL error
+endif;
+```
+
+### ✅ DATE/TIME OPERATIONS:
+```rpgle
+// Correct date/time handling
+dcl-s myDate date;
+dcl-s myTime time;
+
+myDate = d'2024-01-01';
+myTime = t'12.30.45';
+
+// Correct difference calculation
+daysDiff = %diff(endDate : startDate : *days);
+```
+
+### ✅ ARRAY OPERATIONS:
+```rpgle
+// Correct array declarations and operations
+dcl-ds myArray likeds(template_t) dim(100);
+dcl-s simpleArray char(10) dim(50);
+
+// Correct sorting
+sorta simpleArray;
+sorta %subarr(simpleArray : 1 : actualElements);
+```
+### ✅ DATA STRUCTURE DECLARATIONS:
+```rpgle
+// Template definition
+dcl-ds template_t template;
+    field1 char(10);
+    field2 packed(5:0);
+end-ds;
+
+// Instance with template
+dcl-ds instance likeds(template_t);
+
+// Multiple occurrence
+dcl-ds occurs_ds occurs(10);
+    field1 char(10);
+end-ds;
+```
+
+### ✅ ERROR HANDLING:
+```rpgle
+// Always include proper error handling
+monitor;
+    // Risky operation
+on-error;
+    // Handle error
+endmon;
+```
+
+### ✅ STRING OPERATIONS:
+```rpgle
+// Use appropriate BIFs
+pos = %scan(searchString : targetString);
+len = %len(%trim(string));
+upper = %upper(string);
+```
+
+### ✅ PROCEDURE DEFINITIONS:
+```rpgle
+// Matching prototype and interface
+dcl-pr myProcedure varchar(100);
+  param1 char(50) const;
+  param2 int(10) value;
+end-pr;
+
+dcl-proc myProcedure;
+  dcl-pi *n varchar(100);
+    param1 char(50) const;
+    param2 int(10) value;
+  end-pi;
+  
+  // All variable declarations here
+  dcl-s result varchar(100);
+  
+  // Executable code here
+  return result;
+end-proc;
+```
+---
+
+## 🚨 UPDATED COMPILATION ERROR PREVENTION CHECKLIST
+
+Additional items to verify:
+
+- [ ] **Parameter passing** - const requires value keyword
+- [ ] **SQL operations** - proper host variable syntax with colons
+- [ ] **Date/time literals** - use d'YYYY-MM-DD' and t'HH.MM.SS'
+- [ ] **BIF initialization** - cannot use BIFs in inz() clause
+- [ ] **Integer lengths** - only 3, 5, 10, 20 allowed
+- [ ] **Export keyword** - only in procedure implementation
+- [ ] **Data area declarations** - use dcl-ds not dcl-s
+- [ ] **Template vs instance** - cannot have same names
+- [ ] **File operations** - consistent syntax and error handling
+- [ ] **Parameter omission** - use %omit() not blank parameters
+- [ ] **Overlay functionality** - use data structures in **FREE
+- [ ] **Variable scope** - no declarations inside loops or blocks
+- [ ] **Array element sizes** - match to data requirements
+- [ ] **SQL error handling** - use SQLSTATE for checking
+
+This completes the documentation of the additional errors found during your RPGLE test generation process.
+
 
 ## 📝 ADDITIONAL SESSION-LEVEL INSIGHTS
 
