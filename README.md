@@ -1184,15 +1184,12 @@ exec sql fetch from testCursor3 for 10 rows into :fetchArray;
 
 ### ✅ CORRECT COMPILABLE CODE:
 ```rpgle
-// Correct: Use MOVE operation code or assignment
-move TEST_DATE dateds;
 // Or use direct assignment
 dateds = TEST_DATE;
 ```
 
 ### 📖 LESSON LEARNED:
 - **%move() BIF doesn't exist**
-- **Use MOVE operation code** for legacy behavior
 - **Use direct assignment** in free-format RPG
 
 ---
@@ -1240,7 +1237,7 @@ dcl-ds sysds psds qualified;
 end-ds;
 
 // Or template only (separate from PSDS)
-dcl-ds psdsTemplate qualified template;
+dcl-ds psdsTemplate template;
   procName char(10) pos(1);
   sysDate char(8) pos(191);
 end-ds;
@@ -1380,28 +1377,6 @@ dcl-s testVar int(10);
 
 ---
 
-## ❌ MISTAKE #39: Invalid String Operations
-
-### 🔴 INCORRECT CODE GENERATED:
-```rpgle
-// Wrong: Invalid string concatenation and operations
-longString = 'First part' + 'Second part';
-testStr = 'TEST123' + *blanks;
-```
-
-### ✅ CORRECT COMPILABLE CODE:
-```rpgle
-// Correct: Proper string handling
-longString = 'First part Second part';
-testStr = 'TEST123' + %trimr(*blanks);
-```
-
-### 📖 LESSON LEARNED:
-- **No + operator** for string concatenation in RPG
-- **Use %trimr()** for proper blank handling
-- **Keep strings intact** or use proper string BIFs
-
----
 
 ## ❌ MISTAKE #40: Data Area Declaration Errors
 
@@ -1429,7 +1404,7 @@ end-ds;
 ### 📖 LESSON LEARNED:
 - **Data areas** require data structure declarations
 - **Use dcl-ds** not dcl-s for data areas
-- **PSDS and template** cannot be used together
+- **qualified and template** cannot be used together
 
 ---
 
@@ -1633,37 +1608,6 @@ dcl-ds myInstance likeds(myTemplate_t);
 
 ---
 
-## ❌ MISTAKE #49: Invalid File Operation Syntax
-
-### 🔴 INCORRECT CODE GENERATED:
-```rpgle
-// Wrong: Mixed file operation syntax
-open(e) myFile;
-close(e) myFile;
-read(e) myFile;
-```
-
-### ✅ CORRECT COMPILABLE CODE:
-```rpgle
-// Correct: Consistent file operation syntax
-open myFile;
-close myFile;
-read myFile;
-
-// Or with error handling
-open(e) myFile;
-if not %error();
-  // File opened successfully
-endif;
-```
-
-### 📖 LESSON LEARNED:
-- **Consistent syntax** for file operations
-- **Error handling** with (e) extender
-- **Check %error()** after operations with (e)
-
----
-
 ## ❌ MISTAKE #50: Invalid Parameter Omission
 
 ### 🔴 INCORRECT CODE GENERATED:
@@ -1675,12 +1619,12 @@ myProcedure(param1 : ;);  // Invalid syntax
 
 ### ✅ CORRECT COMPILABLE CODE:
 ```rpgle
-// Correct: Use %omit() for optional parameters
-myProcedure(param1 : %omit() : param3);
+// Correct: Use *omit for optional parameters
+myProcedure(param1 : *omit : param3);
 ```
 
 ### 📖 LESSON LEARNED:
-- **Use %omit()** for omitting parameters
+- **Use *omit ** for omitting parameters
 - **Cannot leave parameters blank** with just colons
 - **Optional parameters** need proper omission syntax
 
@@ -1766,7 +1710,7 @@ dcl-s dynamicArray char(10) dim(32767) based(memoryPtr);
 ### 🔴 INCORRECT CODE GENERATED:
 ```rpgle
 // Wrong: dcl-s for data structure array
-dcl-s cache likeds(cacheEntry_t) dim(1000);
+dcl-s cache likeds(cacheEntry_t) dim(100);
 ```
 
 ### ✅ CORRECT COMPILABLE CODE:
