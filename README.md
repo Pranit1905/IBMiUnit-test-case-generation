@@ -229,9 +229,6 @@ result = *blanks;
 
 // Wrong: Invalid assertion syntax
 assertNull(%addr(ptr : *data));
-
-// Wrong: Invalid return in mainline
-return;
 ```
 
 ### ✅ CORRECT COMPILABLE CODE:
@@ -242,14 +239,11 @@ dealloc ptr;
 // Correct: Proper pointer testing
 // (Note: You cannot reliably test pointer deallocation in RPGLE)
 
-// Correct: Programs end naturally in free-format
-// No return needed in mainline
 ```
 
 ### 📖 LESSON LEARNED:
 - **Use `dealloc` operation code**, not %dealloc() BIF
 - **Pointer deallocation testing** is not reliable in RPGLE
-- **Free-format programs** end naturally without return
 
 ---
 
